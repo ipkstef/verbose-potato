@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCG Pricing Calculator - Cloudflare Optimized</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .upload-section {
+            text-align: center;
+        }
+
+        .file-upload {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .file-input-group {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-label {
+            display: block;
+            padding: 15px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .file-info {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .file-size-warning {
+            background: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+            border-left: 4px solid #ffc107;
+        }
+
+        .process-btn {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .process-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .process-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+
+        .results {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+
+        .summary-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .price-changes {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+
+        .change-item {
+            text-align: center;
+        }
+
+        .change-item .count {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .change-item.increased .count {
+            color: #28a745;
+        }
+
+        .change-item.decreased .count {
+            color: #dc3545;
+        }
+
+        .change-item.unchanged .count {
+            color: #6c757d;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #dc3545;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #28a745;
+        }
+
+        .instructions {
+            background: #e7f3ff;
+            border-left: 4px solid #007bff;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .instructions h3 {
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+
+        .instructions ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .instructions li {
+            margin-bottom: 8px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .instructions li:before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+
+        .cloudflare-info {
+            background: #e8f5e8;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .cloudflare-info h3 {
+            color: #28a745;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-calculator"></i> TCG Pricing Calculator</h1>
+            <p>Client-side processing for unlimited file sizes</p>
+        </div>
+
+        <div class="card">
+            <div class="cloudflare-info">
+                <h3><i class="fas fa-cloud"></i> Cloudflare Optimized</h3>
+                <ul>
+                    <li><strong>Unlimited file sizes:</strong> Process 300MB+ files in your browser</li>
+                    <li><strong>No server limits:</strong> All processing happens locally</li>
+                    <li><strong>Fast processing:</strong> Uses your computer's power</li>
+                    <li><strong>Privacy:</strong> Files never leave your browser</li>
+                </ul>
+            </div>
+
+            <div class="instructions">
+                <h3><i class="fas fa-info-circle"></i> How to Use</h3>
+                <ul>
+                    <li>Upload your <strong>previous.csv</strong> file (any size)</li>
+                    <li>Upload your <strong>current.csv</strong> file (any size)</li>
+                    <li>Click "Process Files" to calculate pricing in your browser</li>
+                    <li>Download the processed results as a CSV file</li>
+                </ul>
+            </div>
+
+            <div class="upload-section">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="file-upload">
+                        <div class="file-input-group">
+                            <input type="file" id="previousFile" name="previous_file" class="file-input" accept=".csv" required>
+                            <label for="previousFile" class="file-label">
+                                <i class="fas fa-upload"></i> Choose Previous.csv
+                            </label>
+                        </div>
+                        <div class="file-info" id="previousFileInfo"></div>
+                    </div>
+
+                    <div class="file-upload">
+                        <div class="file-input-group">
+                            <input type="file" id="currentFile" name="current_file" class="file-input" accept=".csv" required>
+                            <label for="currentFile" class="file-label">
+                                <i class="fas fa-upload"></i> Choose Current.csv
+                            </label>
+                        </div>
+                        <div class="file-info" id="currentFileInfo"></div>
+                    </div>
+
+                    <button type="submit" class="process-btn" id="processBtn">
+                        <i class="fas fa-cogs"></i> Process Files (Client-Side)
+                    </button>
+                </form>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Processing files in your browser...</p>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Initializing...</div>
+                </div>
+
+                <div id="errorMessage"></div>
+                <div id="successMessage"></div>
+            </div>
+
+            <div class="results" id="results">
+                <h2><i class="fas fa-chart-bar"></i> Processing Results</h2>
+                
+                <div class="summary-grid" id="summaryGrid">
+                    <!-- Summary cards will be inserted here -->
+                </div>
+
+                <div style="text-align: center;">
+                    <a href="#" class="download-btn" id="downloadBtn">
+                        <i class="fas fa-download"></i> Download Results
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables for processing
+        let processedData = null;
+        let processedFilename = null;
+
+        // File input handling
+        function checkFileSize(file, infoElement) {
+            if (file) {
+                const sizeMB = (file.size / 1024 / 1024).toFixed(1);
+                infoElement.textContent = `Selected: ${file.name} (${sizeMB} MB)`;
+            } else {
+                infoElement.textContent = '';
+            }
+        }
+
+        document.getElementById('previousFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const info = document.getElementById('previousFileInfo');
+            checkFileSize(file, info);
+        });
+
+        document.getElementById('currentFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const info = document.getElementById('currentFileInfo');
+            checkFileSize(file, info);
+        });
+
+        // Client-side CSV processing functions
+        function parseCSV(file) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        if (results.errors.length > 0) {
+                            reject('CSV parsing errors: ' + results.errors.map(e => e.message).join(', '));
+                        } else {
+                            resolve(results.data);
+                        }
+                    },
+                    error: function(error) {
+                        reject('CSV parsing failed: ' + error.message);
+                    }
+                });
+            });
+        }
+
+        function processPricingData(previous, current) {
+            try {
+                // Filter current data
+                const filteredCurrent = current.filter(row => 
+                    row.Condition !== 'Unopened' && 
+                    row['TCG Market Price'] && 
+                    parseFloat(row['TCG Market Price']) > 0
+                );
+
+                // Create lookup for previous data
+                const previousLookup = {};
+                previous.forEach(row => {
+                    if (row['TCGplayer Id']) {
+                        previousLookup[row['TCGplayer Id']] = row;
+                    }
+                });
+
+                // Process each current row
+                const processed = filteredCurrent.map(row => {
+                    const tcgId = row['TCGplayer Id'];
+                    const previousRow = previousLookup[tcgId] || {};
+                    
+                    // Calculate base price
+                    const marketPrice = parseFloat(row['TCG Market Price']) || 0;
+                    const lowPrice = parseFloat(row['TCG Low Price']) || 0;
+                    let basePrice = 50000.00;
+                    
+                    if (marketPrice > 0 && lowPrice > 0) {
+                        basePrice = Math.min(marketPrice, lowPrice);
+                    } else if (lowPrice > 0) {
+                        basePrice = lowPrice;
+                    } else if (marketPrice > 0) {
+                        basePrice = marketPrice;
+                    }
+
+                    // Calculate multiplier
+                    const oldQty = parseInt(previousRow['Old Qty'] || '0') || 0;
+                    const newQty = parseInt(row['Total Quantity'] || '0') || 0;
+                    const oldMultiplier = parseFloat(previousRow['Old Multiplier'] || '1.2') || 1.2;
+                    
+                    let multiplier = 1.2;
+                    if (oldQty === 0) {
+                        multiplier = 1.2;
+                    } else if (oldQty > 0 && newQty === 0) {
+                        multiplier = 1.2;
+                    } else if (oldQty < newQty) {
+                        multiplier = Math.round((oldMultiplier + 0.01) * 100) / 100;
+                    } else if (oldMultiplier - 0.05 > 1) {
+                        multiplier = Math.round((oldMultiplier - 0.05) * 100) / 100;
+                    } else {
+                        multiplier = Math.round((oldMultiplier - 0.01) * 100) / 100;
+                    }
+
+                    // Calculate store price
+                    const qty = parseInt(row['Total Quantity'] || '0') || 0;
+                    let rawPrice = marketPrice > 0 ? marketPrice : basePrice * multiplier;
+                    let bump = 0.25;
+                    
+                    if (qty >= 40) {
+                        bump = 0.05;
+                    } else if (qty >= 20) {
+                        bump = 0.15;
+                    }
+                    
+                    const storePrice = Math.round((rawPrice + Math.max(0, bump - rawPrice)) * 100) / 100;
+                    
+                    // Calculate diff
+                    const oldStorePrice = parseFloat(previousRow['Old My Store Price'] || '0') || 0;
+                    const diff = storePrice - oldStorePrice;
+
+                    return {
+                        ...row,
+                        'Old Multiplier': oldMultiplier,
+                        'Base Price': Math.round(basePrice * 100) / 100,
+                        'Multiplier': multiplier,
+                        'My Store Price': storePrice,
+                        'Old My Store Price': oldStorePrice,
+                        'Diff': Math.round(diff * 100) / 100
+                    };
+                });
+
+                return processed;
+            } catch (error) {
+                throw new Error('Processing error: ' + error.message);
+            }
+        }
+
+        function createSummary(data) {
+            const totalItems = data.length;
+            const marketPrices = data.map(row => parseFloat(row['TCG Market Price']) || 0).filter(p => p > 0);
+            const storePrices = data.map(row => parseFloat(row['My Store Price']) || 0);
+            const diffs = data.map(row => parseFloat(row['Diff']) || 0);
+
+            const avgMarketPrice = marketPrices.length > 0 ? 
+                Math.round(marketPrices.reduce((a, b) => a + b, 0) / marketPrices.length * 100) / 100 : 0;
+            const avgStorePrice = Math.round(storePrices.reduce((a, b) => a + b, 0) / storePrices.length * 100) / 100;
+            const totalValue = Math.round(storePrices.reduce((a, b) => a + b, 0) * 100) / 100;
+
+            const priceChanges = {
+                increased: diffs.filter(d => d > 0).length,
+                decreased: diffs.filter(d => d < 0).length,
+                unchanged: diffs.filter(d => d === 0).length
+            };
+
+            return {
+                total_items: totalItems,
+                avg_market_price: avgMarketPrice,
+                avg_store_price: avgStorePrice,
+                total_value: totalValue,
+                price_changes: priceChanges
+            };
+        }
+
+        function convertToCSV(data) {
+            if (data.length === 0) return '';
+            
+            const headers = Object.keys(data[0]);
+            const csvRows = [headers.join(',')];
+            
+            for (const row of data) {
+                const values = headers.map(header => {
+                    const value = row[header] || '';
+                    return `"${value}"`;
+                });
+                csvRows.push(values.join(','));
+            }
+            
+            return csvRows.join('\n');
+        }
+
+        // Form submission with client-side processing
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const previousFile = document.getElementById('previousFile').files[0];
+            const currentFile = document.getElementById('currentFile').files[0];
+            const processBtn = document.getElementById('processBtn');
+            const loading = document.getElementById('loading');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+            const results = document.getElementById('results');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+
+            // Reset messages
+            errorMessage.innerHTML = '';
+            successMessage.innerHTML = '';
+            results.style.display = 'none';
+
+            // Show loading
+            processBtn.disabled = true;
+            loading.style.display = 'block';
+
+            try {
+                // Update progress
+                progressFill.style.width = '20%';
+                progressText.textContent = 'Reading previous.csv...';
+
+                // Parse previous file
+                const previous = await parseCSV(previousFile);
+                
+                progressFill.style.width = '40%';
+                progressText.textContent = 'Reading current.csv...';
+
+                // Parse current file
+                const current = await parseCSV(currentFile);
+                
+                progressFill.style.width = '60%';
+                progressText.textContent = 'Processing pricing data...';
+
+                // Process the data
+                const processed = processPricingData(previous, current);
+                
+                progressFill.style.width = '80%';
+                progressText.textContent = 'Creating summary...';
+
+                // Create summary
+                const summary = createSummary(processed);
+                
+                progressFill.style.width = '90%';
+                progressText.textContent = 'Preparing download...';
+
+                // Convert to CSV
+                const csvContent = convertToCSV(processed);
+                
+                // Store for download
+                processedData = csvContent;
+                processedFilename = `updated_pricing_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+                
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Complete!';
+
+                setTimeout(() => {
+                    loading.style.display = 'none';
+                    processBtn.disabled = false;
+                    successMessage.innerHTML = `<div class="success"><i class="fas fa-check-circle"></i> Files processed successfully! (${processed.length.toLocaleString()} items)</div>`;
+                    displayResults(summary);
+                }, 1000);
+
+            } catch (error) {
+                loading.style.display = 'none';
+                processBtn.disabled = false;
+                errorMessage.innerHTML = `<div class="error"><i class="fas fa-exclamation-triangle"></i> ${error.message}</div>`;
+            }
+        });
+
+        function displayResults(summary) {
+            const results = document.getElementById('results');
+            const summaryGrid = document.getElementById('summaryGrid');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            // Create summary cards
+            summaryGrid.innerHTML = `
+                <div class="summary-card">
+                    <h3><i class="fas fa-list"></i> Total Items</h3>
+                    <div class="value">${summary.total_items.toLocaleString()}</div>
+                </div>
+                <div class="summary-card">
+                    <h3><i class="fas fa-dollar-sign"></i> Avg Market Price</h3>
+                    <div class="value">$${summary.avg_market_price}</div>
+                </div>
+                <div class="summary-card">
+                    <h3><i class="fas fa-store"></i> Avg Store Price</h3>
+                    <div class="value">$${summary.avg_store_price}</div>
+                </div>
+                <div class="summary-card">
+                    <h3><i class="fas fa-chart-line"></i> Total Value</h3>
+                    <div class="value">$${summary.total_value.toLocaleString()}</div>
+                </div>
+            `;
+
+            // Add price changes section
+            const priceChanges = summary.price_changes;
+            const changesHtml = `
+                <div class="summary-card" style="grid-column: 1 / -1;">
+                    <h3><i class="fas fa-chart-bar"></i> Price Changes</h3>
+                    <div class="price-changes">
+                        <div class="change-item increased">
+                            <div class="count">${priceChanges.increased.toLocaleString()}</div>
+                            <div>Increased</div>
+                        </div>
+                        <div class="change-item decreased">
+                            <div class="count">${priceChanges.decreased.toLocaleString()}</div>
+                            <div>Decreased</div>
+                        </div>
+                        <div class="change-item unchanged">
+                            <div class="count">${priceChanges.unchanged.toLocaleString()}</div>
+                            <div>Unchanged</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            summaryGrid.innerHTML += changesHtml;
+
+            // Setup download button
+            downloadBtn.onclick = function() {
+                const blob = new Blob([processedData], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = processedFilename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            };
+
+            results.style.display = 'block';
+        }
+    </script>
+</body>
+</html> 

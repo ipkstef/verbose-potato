@@ -1,0 +1,13 @@
+name = "tcg-pricing-calculator"
+compatibility_date = "2023-10-30"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production]
+name = "tcg-pricing-calculator"
+
+[functions]
+directory = "functions"
+
+[[pages]]
+name = "tcg-pricing-calculator"
+directory = "public" 
